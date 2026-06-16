@@ -8,23 +8,23 @@ export default function Home() {
   const [downloading, setDownloading] = useState(false);
 
   const download = async () => {
-    if (!url) {
-      alert("Please enter a YouTube URL");
-      return;
-    }
+    if (!url) return;
 
-    setDownloading(true);
+    const response = await fetch(`${API}/download`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: url,
+      }),
+    });
 
-    try {
-      await fetch(
-        `${API}/download?url=${encodeURIComponent(url)}&fmt=mp4`,
-        {
-          method: "POST",
-        }
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Download request failed");
+    const data = await response.json();
+    console.log(data);
+
+    if (response.ok) {
+      window.location.href = `${API}/file`;
     }
   };
 

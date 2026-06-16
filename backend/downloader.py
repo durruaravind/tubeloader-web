@@ -7,10 +7,10 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def download(url):
     opts = {
-        "format": "best[ext=mp4]",
-        "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
-        "progress_hooks": [hook]
-    }
+    "format": "bestvideo+bestaudio/best",
+    "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
+    "progress_hooks": [hook]
+}
 
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
