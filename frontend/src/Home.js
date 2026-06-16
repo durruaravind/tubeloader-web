@@ -5,56 +5,123 @@ const API = process.env.REACT_APP_API;
 export default function Home() {
   const [url, setUrl] = useState("");
   const [progress, setProgress] = useState(0);
+  const [downloading, setDownloading] = useState(false);
 
-  const download = (fmt) => {
-    fetch(`${API}/download?url=${url}&fmt=${fmt}`, { method: "POST" });
+  const download = async () => {
+    if (!url) {
+      alert("Please enter a YouTube URL");
+      return;
+    }
+
+    setDownloading(true);
+
+    try {
+      await fetch(
+        `${API}/download?url=${encodeURIComponent(url)}&fmt=mp4`,
+        {
+          method: "POST",
+        }
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Download request failed");
+    }
   };
 
   useEffect(() => {
-    const t = setInterval(() => {
-      fetch(`${API}/progress`)
-        .then(r => r.json())
-        .then(d => setProgress(d.percent));
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`${API}/progress`);
+        const data = await res.json();
+
+        if (typeof data.percent === "number") {
+          setProgress(data.percent);
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }, 1000);
-    return () => clearInterval(t);
+
+    return () => clearInterval(timer);
   }, []);
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-slate-100 p-4">
-      <div className="w-full max-w-lg bg-white p-6 rounded-xl shadow">
-        <h1 className="text-2xl font-bold text-center mb-4">
-          YouTube Downloader
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#007FFF",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "20px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "600px",
+          background: "white",
+          padding: "30px",
+          borderRadius: "12px",
+        }}
+      >
+        <h1
+          style={{
+            textAlign: "center",
+            marginBottom: "20px",
+          }}
+        >
+          YouTube Video Downloading Tool
         </h1>
 
         <input
-          className="w-full p-2 border rounded mb-4"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
           placeholder="Paste YouTube URL"
-          onChange={e => setUrl(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            marginBottom: "20px",
+          }}
         />
 
-        <div className="flex gap-3 flex-col sm:flex-row">
-          <button
-            className="flex-1 bg-blue-500 text-white py-2 rounded"
-            onClick={() => download("mp3")}
-          >
-            MP3
-          </button>
-          <button
-            className="flex-1 bg-green-500 text-white py-2 rounded"
-            onClick={() => download("mp4")}
-          >
-            MP4
-          </button>
-        </div>
+        <button
+          onClick={download}
+          disabled={downloading}
+          style={{
+            width: "100%",
+            padding: "12px",
+            background: "red",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+          }}
+        >
+          Download MP4
+        </button>
 
-        <div className="mt-5 bg-gray-200 rounded h-4">
+        <div
+          style={{
+            marginTop: "20px",
+            background: "#ddd",
+            height: "20px",
+            borderRadius: "10px",
+          }}
+        >
           <div
-            className="bg-green-500 h-4 rounded"
-            style={{ width: `${progress}%` }}
+            style={{
+              width: `${progress}%`,
+              height: "100%",
+              background: "red",
+              borderRadius: "10px",
+            }}
           />
         </div>
 
-        <p className="text-center mt-2">{progress}%</p>
+        <p style={{ textAlign: "center", marginTop: "10px" }}>
+          {progress}%
+        </p>
       </div>
     </div>
   );
