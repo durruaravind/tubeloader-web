@@ -8,23 +8,37 @@ export default function Home() {
   const [downloading, setDownloading] = useState(false);
 
   const download = async () => {
-    if (!url) return;
+    if (!url) {
+      alert("Please enter a YouTube URL");
+      return;
+    }
 
-    const response = await fetch(`${API}/download`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url: url,
-      }),
-    });
+    try {
+      setDownloading(true);
 
-    const data = await response.json();
-    console.log(data);
+      const response = await fetch(`${API}/download`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: url,
+        }),
+      });
 
-    if (response.ok) {
+      const data = await response.json();
+      console.log(data);
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Download failed");
+      }
+
       window.location.href = `${API}/file`;
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -95,10 +109,11 @@ export default function Home() {
             color: "white",
             border: "none",
             borderRadius: "8px",
-            cursor: "pointer",
+            cursor: downloading ? "not-allowed" : "pointer",
+            opacity: downloading ? 0.7 : 1,
           }}
         >
-          Download MP4
+          {downloading ? "Downloading..." : "Download MP4"}
         </button>
 
         <div
