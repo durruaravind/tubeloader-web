@@ -1,5 +1,0 @@
-fastapi
-uvicorn
-yt-dlp
-pydantic
-python-multipart
