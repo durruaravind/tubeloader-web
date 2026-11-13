@@ -1,18 +1,6 @@
-import yt_dlp
-import os
-from progress import hook
+"""Download implementation is managed by the task worker in main.py.
 
-DOWNLOAD_DIR = "downloads"
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-
-def download(url):
-    opts = {
-    "format": "bestvideo+bestaudio/best",
-    "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
-    "progress_hooks": [hook]
-}
-
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
-        return filename
+Keeping this module intentionally free of persistent download directories ensures
+that every job writes only to a unique temporary directory and is removed after
+the browser receives the MP4 file.
+"""
