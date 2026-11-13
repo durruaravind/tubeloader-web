@@ -134,6 +134,19 @@ def progress_hook(task_id: str):
     return hook
 
 
+def expire_task(task_id: str):
+    with tasks_lock:
+        task = tasks.pop(task_id, None)
+    if task and task.get("temp_dir"):
+        shutil.rmtree(task["temp_dir"], ignore_errors=True)
+
+
+def schedule_expiry(task_id: str, seconds: int):
+    timer = threading.Timer(seconds, expire_task, args=(task_id,))
+    timer.daemon = True
+    timer.start()
+
+
 def run_download(task_id: str, url: str, quality: int):
     with tasks_lock:
         task = tasks.get(task_id)
@@ -174,13 +187,17 @@ def run_download(task_id: str, url: str, quality: int):
             if not filepath.exists():
                 raise RuntimeError("The MP4 file was not created. Please try another quality.")
         with tasks_lock:
-            if task_id in tasks:
-                tasks[task_id].update({
+            task = tasks.get(task_id)
+            if task and task["cancel_event"].is_set():
+                raise yt_dlp.utils.DownloadError("Download cancelled by user.")
+            if task:
+                task.update({
                     "status": "completed",
                     "percent": 100,
                     "file_path": str(filepath),
                     "filename": filepath.name,
                 })
+        schedule_expiry(task_id, 900)
     except Exception as exc:
         cancelled = False
         with tasks_lock:
@@ -192,6 +209,7 @@ def run_download(task_id: str, url: str, quality: int):
                     "error": "Download cancelled." if cancelled else str(exc)[:300],
                 })
         shutil.rmtree(temp_dir, ignore_errors=True)
+        schedule_expiry(task_id, 60)
 
 
 @app.post("/api/download")
