@@ -143,15 +143,6 @@ export default function Home() {
     }
   };
 
-  const reset = () => {
-    setUrl("");
-    setVideo(null);
-    setTask(null);
-    setTaskId(null);
-    setError("");
-    setBusy(false);
-  };
-
   const progress = Math.max(0, Math.min(100, Number(task?.percent) || 0));
 
   return (
