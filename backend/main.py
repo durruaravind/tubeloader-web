@@ -19,6 +19,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://tubeloader-web.vercel.app",
+        "https://tubeloader-web-git-feature-stream-download-no-storage-aravind3d.vercel.app",
         "http://localhost:3000",
     ],
     allow_methods=["GET", "POST", "OPTIONS"],
