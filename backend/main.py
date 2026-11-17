@@ -56,7 +56,8 @@ def ffmpeg_path():
 def metadata_options():
     options = {
         "quiet": True,
-        "no_warnings": True,
+        "verbose": True,
+        "no_warnings": False,
         "skip_download": True,
         "noplaylist": True,
         # Avoid the web_embedded client, which has recently caused player-response
