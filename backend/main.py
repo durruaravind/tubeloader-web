@@ -59,6 +59,9 @@ def metadata_options():
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
+        # Avoid the web_embedded client, which has recently caused player-response
+        # extraction failures for some YouTube videos.
+        "extractor_args": {"youtube": {"player_client": ["default", "-web_embedded"]}},
     }
     binary = ffmpeg_path()
     if binary:
@@ -169,6 +172,7 @@ def run_download(task_id: str, url: str, quality: int):
             "outtmpl": os.path.join(temp_dir, "%(title).160B [%(id)s].%(ext)s"),
             "noplaylist": True,
             "quiet": True,
+            "extractor_args": {"youtube": {"player_client": ["default", "-web_embedded"]}},
             "no_warnings": True,
             "progress_hooks": [progress_hook(task_id)],
             "merge_output_format": "mp4",
