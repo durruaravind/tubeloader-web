@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 import tempfile
 import threading
 import uuid
@@ -30,6 +31,42 @@ app.add_middleware(
 executor = ThreadPoolExecutor(max_workers=2)
 tasks = {}
 tasks_lock = threading.Lock()
+
+POT_PROVIDER_VERSION = "2.0.2"
+POT_PROVIDER_HOME = Path(tempfile.gettempdir()) / "bgutil-ytdlp-pot-provider"
+POT_PROVIDER_SERVER = POT_PROVIDER_HOME / "server"
+
+
+def setup_pot_provider():
+    """Install the bgutil script provider once per Render instance."""
+    if POT_PROVIDER_SERVER.is_dir() and (POT_PROVIDER_SERVER / "src").is_dir():
+        return
+    shutil.rmtree(POT_PROVIDER_HOME, ignore_errors=True)
+    subprocess.run(
+        [
+            "git", "clone", "--depth", "1", "--single-branch",
+            "--branch", POT_PROVIDER_VERSION,
+            "https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git",
+            str(POT_PROVIDER_HOME),
+        ],
+        check=True, capture_output=True, text=True, timeout=180,
+    )
+    subprocess.run(
+        ["deno", "install", "--allow-scripts=npm:canvas", "--frozen"],
+        cwd=str(POT_PROVIDER_SERVER),
+        check=True, capture_output=True, text=True, timeout=360,
+    )
+
+
+@app.on_event("startup")
+def initialize_youtube_support():
+    try:
+        setup_pot_provider()
+        print("YouTube PO token script provider initialized.")
+    except Exception as exc:
+        # Keep the API available; yt-dlp may still work for videos that do not
+        # require a PO token. The failure is visible in Render logs.
+        print(f"WARNING: YouTube PO token provider setup failed: {exc}")
 
 
 class VideoRequest(BaseModel):
@@ -62,7 +99,11 @@ def metadata_options():
         "noplaylist": True,
         # Avoid the web_embedded client, which has recently caused player-response
         # extraction failures for some YouTube videos.
-        "extractor_args": {"youtube": {"player_client": ["default", "-web_embedded"]}},
+        "js_runtimes": {"deno": {}},
+        "extractor_args": {
+            "youtube": {"player_client": ["default", "-web_embedded"]},
+            "youtubepot-bgutilscript": {"server_home": str(POT_PROVIDER_SERVER)},
+        },
     }
     binary = ffmpeg_path()
     if binary:
@@ -173,7 +214,11 @@ def run_download(task_id: str, url: str, quality: int):
             "outtmpl": os.path.join(temp_dir, "%(title).160B [%(id)s].%(ext)s"),
             "noplaylist": True,
             "quiet": True,
-            "extractor_args": {"youtube": {"player_client": ["default", "-web_embedded"]}},
+            "js_runtimes": {"deno": {}},
+            "extractor_args": {
+                "youtube": {"player_client": ["default", "-web_embedded"]},
+                "youtubepot-bgutilscript": {"server_home": str(POT_PROVIDER_SERVER)},
+            },
             "no_warnings": True,
             "progress_hooks": [progress_hook(task_id)],
             "merge_output_format": "mp4",
