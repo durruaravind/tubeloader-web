@@ -1,5 +1,7 @@
 fastapi>=0.110
 uvicorn[standard]>=0.27
-yt-dlp>=2025.1.15
+yt-dlp[default]>=2025.1.15
+deno==2.9.8
+bgutil-ytdlp-pot-provider==2.0.2
 pydantic>=2.6
 imageio-ffmpeg>=0.5.1
