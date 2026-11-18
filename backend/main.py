@@ -101,8 +101,8 @@ def metadata_options():
         # extraction failures for some YouTube videos.
         "js_runtimes": {"deno": {}},
         "extractor_args": {
-            "youtube": {"player_client": ["default", "-web_embedded"]},
-            "youtubepot-bgutilscript": {"script_path": str(POT_PROVIDER_SERVER / "src" / "generate_once.ts")},
+            "youtube": {"player_client": ["mweb", "tv", "web_safari"]},
+            "youtubepot-bgutilscript": {"server_home": str(POT_PROVIDER_SERVER)},
         },
     }
     binary = ffmpeg_path()
@@ -216,8 +216,8 @@ def run_download(task_id: str, url: str, quality: int):
             "quiet": True,
             "js_runtimes": {"deno": {}},
             "extractor_args": {
-                "youtube": {"player_client": ["default", "-web_embedded"]},
-                "youtubepot-bgutilscript": {"script_path": str(POT_PROVIDER_SERVER / "src" / "generate_once.ts")},
+                "youtube": {"player_client": ["mweb", "tv", "web_safari"]},
+                "youtubepot-bgutilscript": {"server_home": str(POT_PROVIDER_SERVER)},
             },
             "no_warnings": True,
             "progress_hooks": [progress_hook(task_id)],
