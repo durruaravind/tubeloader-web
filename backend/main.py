@@ -127,7 +127,7 @@ def metadata_options():
         # extraction failures for some YouTube videos.
         "js_runtimes": {"deno": {}},
         "extractor_args": {
-            # yt-dlp recommends mweb with a PO Token provider.\n            # Avoid forcing TV/web_safari clients, which can expose restricted formats.\n            "youtube": {"player_client": ["mweb"]},
+            "youtube": {"player_client": ["mweb"]},
             "youtubepot-bgutilhttp": {"base_url": POT_PROVIDER_URL},
         },
     }
@@ -256,7 +256,7 @@ def run_download(task_id: str, url: str, quality: int):
             "quiet": True,
             "js_runtimes": {"deno": {}},
             "extractor_args": {
-                # yt-dlp recommends mweb with a PO Token provider.\n            # Avoid forcing TV/web_safari clients, which can expose restricted formats.\n            "youtube": {"player_client": ["mweb"]},
+                "youtube": {"player_client": ["mweb"]},
                 "youtubepot-bgutilhttp": {"base_url": POT_PROVIDER_URL},
             },
             "no_warnings": True,
