@@ -39,7 +39,7 @@ POT_PROVIDER_SERVER = POT_PROVIDER_HOME / "server"
 
 def setup_pot_provider():
     """Install the bgutil script provider once per Render instance."""
-    if POT_PROVIDER_SERVER.is_dir() and (POT_PROVIDER_SERVER / "src").is_dir():
+    if (POT_PROVIDER_SERVER / "src" / "generate_once.ts").is_file():
         return
     shutil.rmtree(POT_PROVIDER_HOME, ignore_errors=True)
     subprocess.run(
@@ -62,7 +62,7 @@ def setup_pot_provider():
 def initialize_youtube_support():
     try:
         setup_pot_provider()
-        print("YouTube PO token script provider initialized.")
+        print(f"YouTube PO token script provider initialized: {POT_PROVIDER_SERVER / 'src' / 'generate_once.ts'}")
     except Exception as exc:
         # Keep the API available; yt-dlp may still work for videos that do not
         # require a PO token. The failure is visible in Render logs.
@@ -102,7 +102,7 @@ def metadata_options():
         "js_runtimes": {"deno": {}},
         "extractor_args": {
             "youtube": {"player_client": ["default", "-web_embedded"]},
-            "youtubepot-bgutilscript": {"server_home": str(POT_PROVIDER_SERVER)},
+            "youtubepot-bgutilscript": {"script_path": str(POT_PROVIDER_SERVER / "src" / "generate_once.ts")},
         },
     }
     binary = ffmpeg_path()
@@ -217,7 +217,7 @@ def run_download(task_id: str, url: str, quality: int):
             "js_runtimes": {"deno": {}},
             "extractor_args": {
                 "youtube": {"player_client": ["default", "-web_embedded"]},
-                "youtubepot-bgutilscript": {"server_home": str(POT_PROVIDER_SERVER)},
+                "youtubepot-bgutilscript": {"script_path": str(POT_PROVIDER_SERVER / "src" / "generate_once.ts")},
             },
             "no_warnings": True,
             "progress_hooks": [progress_hook(task_id)],
