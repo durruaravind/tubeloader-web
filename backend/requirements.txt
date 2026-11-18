@@ -1,5 +1,7 @@
-fastapi
-uvicorn
-yt-dlp
-pydantic
-python-multipart
+fastapi>=0.110
+uvicorn[standard]>=0.27
+yt-dlp[default]>=2026.10.26
+deno==2.9.8
+bgutil-ytdlp-pot-provider==2.0.2
+pydantic>=2.6
+imageio-ffmpeg>=0.5.1
