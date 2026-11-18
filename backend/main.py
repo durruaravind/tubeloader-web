@@ -3,7 +3,10 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import uuid
+import urllib.error
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import urlparse
@@ -35,37 +38,58 @@ tasks_lock = threading.Lock()
 POT_PROVIDER_VERSION = "2.0.2"
 POT_PROVIDER_HOME = Path(tempfile.gettempdir()) / "bgutil-ytdlp-pot-provider"
 POT_PROVIDER_SERVER = POT_PROVIDER_HOME / "server"
+POT_PROVIDER_URL = "http://127.0.0.1:4416"
+pot_provider_process = None
 
 
 def setup_pot_provider():
-    """Install the bgutil script provider once per Render instance."""
-    if (POT_PROVIDER_SERVER / "src" / "generate_once.ts").is_file():
-        return
-    shutil.rmtree(POT_PROVIDER_HOME, ignore_errors=True)
-    subprocess.run(
-        [
-            "git", "clone", "--depth", "1", "--single-branch",
-            "--branch", POT_PROVIDER_VERSION,
-            "https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git",
-            str(POT_PROVIDER_HOME),
-        ],
-        check=True, capture_output=True, text=True, timeout=180,
-    )
+    """Install and start the local bgutil HTTP provider on this Render instance."""
+    global pot_provider_process
+    if not (POT_PROVIDER_SERVER / "src" / "main.ts").is_file():
+        shutil.rmtree(POT_PROVIDER_HOME, ignore_errors=True)
+        subprocess.run(
+            [
+                "git", "clone", "--depth", "1", "--single-branch",
+                "--branch", POT_PROVIDER_VERSION,
+                "https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git",
+                str(POT_PROVIDER_HOME),
+            ],
+            check=True, capture_output=True, text=True, timeout=180,
+        )
     subprocess.run(
         ["deno", "install", "--allow-scripts=npm:canvas", "--frozen"],
         cwd=str(POT_PROVIDER_SERVER),
         check=True, capture_output=True, text=True, timeout=360,
     )
+    if pot_provider_process is None or pot_provider_process.poll() is not None:
+        pot_provider_process = subprocess.Popen(
+            [
+                "deno", "run", "--allow-env", "--allow-net",
+                "--allow-ffi=.", "--allow-read=.", "../src/main.ts",
+                "--port", "4416",
+            ],
+            cwd=str(POT_PROVIDER_SERVER / "node_modules"),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+        )
+    for _ in range(30):
+        if pot_provider_process.poll() is not None:
+            raise RuntimeError("bgutil HTTP provider process exited during startup.")
+        try:
+            with urllib.request.urlopen(f"{POT_PROVIDER_URL}/ping", timeout=2) as response:
+                if response.status == 200:
+                    print("YouTube PO token HTTP provider is ready on localhost:4416")
+                    return
+        except (urllib.error.URLError, TimeoutError):
+            time.sleep(1)
+    raise RuntimeError("bgutil HTTP provider did not become healthy within 30 seconds.")
 
 
 @app.on_event("startup")
 def initialize_youtube_support():
     try:
         setup_pot_provider()
-        print(f"YouTube PO token script provider initialized: {POT_PROVIDER_SERVER / 'src' / 'generate_once.ts'}")
     except Exception as exc:
-        # Keep the API available; yt-dlp may still work for videos that do not
-        # require a PO token. The failure is visible in Render logs.
         print(f"WARNING: YouTube PO token provider setup failed: {exc}")
 
 
@@ -102,7 +126,7 @@ def metadata_options():
         "js_runtimes": {"deno": {}},
         "extractor_args": {
             "youtube": {"player_client": ["mweb", "tv", "web_safari"]},
-            "youtubepot-bgutilscript": {"server_home": str(POT_PROVIDER_SERVER)},
+            "youtubepot-bgutilhttp": {"base_url": POT_PROVIDER_URL},
         },
     }
     binary = ffmpeg_path()
@@ -111,12 +135,27 @@ def metadata_options():
     return options
 
 
+def friendly_youtube_error(exc: Exception) -> str:
+    message = str(exc)
+    lowered = message.lower()
+    if "sign in to confirm" in lowered or "http error 429" in lowered or "too many requests" in lowered:
+        return (
+            "YouTube is temporarily refusing requests from this server (rate limit or bot verification). "
+            "Please try again later. This video may be unavailable while YouTube restricts server access."
+        )
+    if "private video" in lowered:
+        return "This video is private and cannot be accessed by TubeLoader."
+    if "members-only" in lowered or "join this channel" in lowered:
+        return "This video requires a channel membership and cannot be accessed by TubeLoader."
+    return f"Could not read this video: {message[:200]}"
+
+
 def extract_video_info(url: str):
     try:
         with yt_dlp.YoutubeDL(metadata_options()) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"Could not read this video: {str(exc)[:240]}")
+        raise HTTPException(status_code=422, detail=friendly_youtube_error(exc))
     if not info or info.get("_type") == "playlist":
         raise HTTPException(status_code=422, detail="Please use a single YouTube video URL, not a playlist.")
     heights = sorted({
@@ -135,7 +174,6 @@ def extract_video_info(url: str):
         "duration": info.get("duration"),
         "qualities": heights,
     }
-
 
 @app.get("/")
 def health():
@@ -217,7 +255,7 @@ def run_download(task_id: str, url: str, quality: int):
             "js_runtimes": {"deno": {}},
             "extractor_args": {
                 "youtube": {"player_client": ["mweb", "tv", "web_safari"]},
-                "youtubepot-bgutilscript": {"server_home": str(POT_PROVIDER_SERVER)},
+                "youtubepot-bgutilhttp": {"base_url": POT_PROVIDER_URL},
             },
             "no_warnings": True,
             "progress_hooks": [progress_hook(task_id)],
@@ -256,7 +294,7 @@ def run_download(task_id: str, url: str, quality: int):
                 cancelled = task["cancel_event"].is_set()
                 task.update({
                     "status": "cancelled" if cancelled else "error",
-                    "error": "Download cancelled." if cancelled else str(exc)[:300],
+                    "error": "Download cancelled." if cancelled else friendly_youtube_error(exc),
                 })
         shutil.rmtree(temp_dir, ignore_errors=True)
         schedule_expiry(task_id, 60)
