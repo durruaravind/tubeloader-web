@@ -27,7 +27,7 @@ app.add_middleware(
         "http://localhost:3000",
     ],
     # Vercel assigns a unique hostname to each preview deployment.
-    allow_origin_regex=r"^https://tubeloader-[a-z0-9-]+-aravind3d\\.vercel\\.app$",
+    allow_origin_regex=r"^https://tubeloader-[a-z0-9-]+-aravind3d\.vercel\.app$",
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
     expose_headers=["Content-Disposition"],
